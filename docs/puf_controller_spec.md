@@ -14,8 +14,16 @@ defined registers are word-aligned.
 | `0x10` | `DATA2` | R | Response bits `[95:64]` |
 | `0x14` | `DATA3` | R | Response bits `[127:96]` |
 | `0x18` | `CRC` | R | CRC-32/ISO-HDLC of the 128-bit response |
+| `0x1C` | `MASK0` | R/W | Transfer mask bits `[31:0]` |
+| `0x20` | `MASK1` | R/W | Transfer mask bits `[63:32]` |
+| `0x24` | `MASK2` | R/W | Transfer mask bits `[95:64]` |
+| `0x28` | `MASK3` | R/W | Transfer mask bits `[127:96]` |
 
-Address `0x1C` is reserved.
+The transfer mask is a per-bit enable vector. `MASK[x] = 1` means bit `x` is
+captured into the response and contributes to the CRC. `MASK[x] = 0` suppresses
+that bit from the transferred response and excludes it from the CRC update. The
+mask defaults to all ones after reset so the original acquisition behavior is
+preserved.
 
 ### `CONTROL` (`0x00`)
 
