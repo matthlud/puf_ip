@@ -1,0 +1,15 @@
+[options]
+mode prove
+multiclock on
+aigsmt none
+
+[engines]
+abc pdr
+
+[script]
+read -formal -sv -D FORMAL puf_controller.sv puf_controller_formal.sv
+prep -top puf_controller_formal
+
+[files]
+puf_controller.sv rtl/puf_controller.sv
+puf_controller_formal.sv formal/puf_controller_formal.sv

@@ -183,4 +183,63 @@ module puf_controller (
             end
         end
     end
+
+`ifdef FORMAL
+    logic formal_past_valid;
+
+    initial formal_past_valid = 1'b0;
+
+    always_ff @(posedge clk)
+        formal_past_valid <= 1'b1;
+
+    always @(posedge clk) begin
+        if (formal_past_valid && rst_n) begin
+            if ($past(!rst_n)) begin
+                assert (!busy && !done && !error);
+                assert (!request_pending && !puf_start && puf_index == 7'b0);
+                assert (response == 128'b0);
+                assert (
+                    transfer_mask == 128'hFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                );
+                assert (crc == 32'b0 && crc_state == 32'hFFFFFFFF);
+            end
+
+            assert (!(busy && done));
+            assert (irq == (done | error));
+
+            if ($past(rst_n && busy))
+                assert (transfer_mask == $past(transfer_mask));
+
+            if ($past(rst_n && busy && puf_valid)) begin
+                if ($past(puf_index != 7'd127))
+                    assert (puf_index == ($past(puf_index) + 7'd1));
+                else begin
+                    assert (done && !busy);
+                    if ($past(transfer_mask[puf_index]))
+                        assert (
+                            crc == ~crc32_update(
+                                $past(crc_state), $past(puf_bit)
+                            )
+                        );
+                    else
+                        assert (crc == ~$past(crc_state));
+                end
+
+                if ($past(transfer_mask[puf_index])) begin
+                    assert (
+                        response[$past(puf_index)] == $past(puf_bit)
+                    );
+                    assert (
+                        crc_state == crc32_update(
+                            $past(crc_state), $past(puf_bit)
+                        )
+                    );
+                end else begin
+                    assert (response[$past(puf_index)] == 1'b0);
+                    assert (crc_state == $past(crc_state));
+                end
+            end
+        end
+    end
+`endif
 endmodule
