@@ -185,6 +185,8 @@ module puf_controller (
     end
 
 `ifdef FORMAL
+    // Formal-only history flag: suppress $past-based checks until one clock
+    // has elapsed. This block is removed from ordinary simulation/synthesis.
     logic formal_past_valid;
 
     initial formal_past_valid = 1'b0;
@@ -194,6 +196,8 @@ module puf_controller (
 
     always @(posedge clk) begin
         if (formal_past_valid && rst_n) begin
+            // Once reset has been released, all architecturally visible and
+            // internal acquisition state must reflect the asynchronous reset.
             if ($past(!rst_n)) begin
                 assert (!busy && !done && !error);
                 assert (!request_pending && !puf_start && puf_index == 7'b0);
@@ -207,9 +211,15 @@ module puf_controller (
             assert (!(busy && done));
             assert (irq == (done | error));
 
+            // A transfer mask is sampled for an acquisition and cannot change
+            // on a cycle whose previous state was busy.
             if ($past(rst_n && busy))
                 assert (transfer_mask == $past(transfer_mask));
 
+            // Compare each accepted macro response against the pre-edge index
+            // and mask. The final bit completes the transfer and publishes the
+            // complemented CRC; disabled bits contribute zero and do not update
+            // the CRC accumulator.
             if ($past(rst_n && busy && puf_valid)) begin
                 if ($past(puf_index != 7'd127))
                     assert (puf_index == ($past(puf_index) + 7'd1));
