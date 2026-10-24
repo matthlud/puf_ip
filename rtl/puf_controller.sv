@@ -26,6 +26,10 @@ module puf_controller (
     localparam logic [7:0] ADDR_DATA2   = 8'h10;
     localparam logic [7:0] ADDR_DATA3   = 8'h14;
     localparam logic [7:0] ADDR_CRC     = 8'h18;
+    localparam logic [7:0] ADDR_MASK0   = 8'h1C;
+    localparam logic [7:0] ADDR_MASK1   = 8'h20;
+    localparam logic [7:0] ADDR_MASK2   = 8'h24;
+    localparam logic [7:0] ADDR_MASK3   = 8'h28;
 
     localparam logic [31:0] CRC32_REFLECTED_POLY = 32'hEDB88320;
 
@@ -48,6 +52,7 @@ module puf_controller (
     logic        error;
     logic        request_pending;
     logic [127:0] response;
+    logic [127:0] transfer_mask;
     logic [31:0] crc;
     logic [31:0] crc_state;
     logic [31:0] crc_bit_next;
@@ -67,6 +72,10 @@ module puf_controller (
                 ADDR_DATA2:  reg_rdata = response[95:64];
                 ADDR_DATA3:  reg_rdata = response[127:96];
                 ADDR_CRC:    reg_rdata = crc;
+                ADDR_MASK0:  reg_rdata = transfer_mask[31:0];
+                ADDR_MASK1:  reg_rdata = transfer_mask[63:32];
+                ADDR_MASK2:  reg_rdata = transfer_mask[95:64];
+                ADDR_MASK3:  reg_rdata = transfer_mask[127:96];
                 default:     reg_rdata = 32'b0;
             endcase
         end
@@ -81,6 +90,7 @@ module puf_controller (
             error     <= 1'b0;
             request_pending <= 1'b0;
             response  <= 128'b0;
+            transfer_mask <= 128'hFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
             crc       <= 32'b0;
             crc_state <= 32'hFFFFFFFF;
             puf_start <= 1'b0;
@@ -94,44 +104,58 @@ module puf_controller (
             end
 
             if (busy && puf_valid) begin
-                response[puf_index] <= puf_bit;
-                crc_state <= crc_bit_next;
+                if (transfer_mask[puf_index]) begin
+                    response[puf_index] <= puf_bit;
+                    crc_state <= crc_bit_next;
+                end else begin
+                    response[puf_index] <= 1'b0;
+                end
 
                 if (puf_index == 7'd127) begin
                     busy <= 1'b0;
                     done <= 1'b1;
-                    crc <= ~crc_bit_next;
+                    crc <= ~((transfer_mask[puf_index]) ? crc_bit_next : crc_state);
                 end else begin
                     puf_index <= puf_index + 7'd1;
                     request_pending <= 1'b1;
                 end
             end
 
-            if (reg_wr && reg_addr == ADDR_CONTROL) begin
-                if (reg_wdata[1]) begin
-                    if (!busy) begin
-                        busy      <= 1'b0;
-                        done      <= 1'b0;
-                        error     <= 1'b0;
-                        response  <= 128'b0;
-                        crc       <= 32'b0;
-                        crc_state <= 32'hFFFFFFFF;
-                        puf_start <= 1'b0;
-                        puf_index <= 7'b0;
-                        request_pending <= 1'b0;
-                    end
-                end else if (reg_wdata[0]) begin
-                    if (busy) begin
-                        error <= 1'b1;
-                    end else begin
-                        busy      <= 1'b1;
-                        done      <= 1'b0;
-                        response  <= 128'b0;
-                        crc       <= 32'b0;
-                        crc_state <= 32'hFFFFFFFF;
-                        puf_index <= 7'b0;
-                        puf_start <= 1'b1;
-                        request_pending <= 1'b0;
+            if (reg_wr) begin
+                case (reg_addr)
+                    ADDR_MASK0: if (!busy) transfer_mask[31:0] <= reg_wdata;
+                    ADDR_MASK1: if (!busy) transfer_mask[63:32] <= reg_wdata;
+                    ADDR_MASK2: if (!busy) transfer_mask[95:64] <= reg_wdata;
+                    ADDR_MASK3: if (!busy) transfer_mask[127:96] <= reg_wdata;
+                    default: begin end
+                endcase
+
+                if (reg_addr == ADDR_CONTROL) begin
+                    if (reg_wdata[1]) begin
+                        if (!busy) begin
+                            busy      <= 1'b0;
+                            done      <= 1'b0;
+                            error     <= 1'b0;
+                            response  <= 128'b0;
+                            crc       <= 32'b0;
+                            crc_state <= 32'hFFFFFFFF;
+                            puf_start <= 1'b0;
+                            puf_index <= 7'b0;
+                            request_pending <= 1'b0;
+                        end
+                    end else if (reg_wdata[0]) begin
+                        if (busy) begin
+                            error <= 1'b1;
+                        end else begin
+                            busy      <= 1'b1;
+                            done      <= 1'b0;
+                            response  <= 128'b0;
+                            crc       <= 32'b0;
+                            crc_state <= 32'hFFFFFFFF;
+                            puf_index <= 7'b0;
+                            puf_start <= 1'b1;
+                            request_pending <= 1'b0;
+                        end
                     end
                 end
             end
