@@ -66,8 +66,20 @@ make clean
 The testbench checks reset values, control writes, status behavior, PUF request
 pulse spacing and count, response-bit placement, and the computed CRC.
 
+## Waveform viewing
+
+The testbench writes a VCD waveform to `build/sim/puf_controller_tb.vcd`.
+Open it with GTKWave:
+
+```sh
+sudo apt install gtkwave
+make test
+gtkwave build/sim/puf_controller_tb.vcd
+```
+
 ## Interface and register specification
 
 See [docs/puf_controller_spec.md](docs/puf_controller_spec.md) for the full
 register map, command/status semantics, PUF request/response handshake, CRC
-parameters, reset behavior, reserved accesses, and interrupt behavior.
+parameters, transfer mask behavior, reset behavior, reserved accesses, and
+interrupt behavior.
