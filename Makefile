@@ -3,7 +3,7 @@ VVP ?= vvp
 SIM_DIR := build/sim
 SIM_BINARY := $(SIM_DIR)/puf_controller_tb.vvp
 RTL := rtl/puf_controller.sv rtl/puf_model.sv
-TESTBENCH := tb/puf_controller_tb.sv
+TESTBENCH := tb/tests/test_top.sv
 
 .PHONY: test wave clean
 
