@@ -11,6 +11,7 @@ docs/puf_controller_spec.md       Register and interface specification
 rtl/puf_controller.sv             Controller RTL
 rtl/puf_model.sv                  Deterministic PUF source model
 tb/tests/                         Modular self-checking testbench
+formal/                           SymbiYosys harness, assertions, and runner
 r2g/                              OpenROAD RTL-to-GDS flow
 Makefile                          Simulation and cleanup targets
 ```
@@ -89,6 +90,27 @@ sudo apt install gtkwave
 make test
 gtkwave build/sim/puf_controller_tb.vcd
 ```
+
+## Formal verification
+
+The controller has an optional formal assertion set guarded by `FORMAL`, so
+normal simulation and synthesis builds are unchanged. It uses SymbiYosys (SBY)
+and the ABC PDR engine from the pinned OpenROAD Flow Scripts container:
+
+```sh
+./formal/run.sh
+```
+
+Docker is required. The proof results are written under
+`build/formal/puf_controller/`; set `FORMAL_IMAGE` to override the default
+container image. The assertions check status/IRQ consistency, reserved-register
+reads, the busy/done invariant, mask stability while acquiring, response and
+CRC-state updates for masked and unmasked bits, index advancement, and final
+CRC publication.
+
+The harness constrains the abstract PUF source to return no more than one bit
+per outstanding request. Response latency remains unbounded, so the proof does
+not claim that an acquisition eventually completes.
 
 ## Interface and register specification
 
